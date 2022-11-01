@@ -1,3 +1,4 @@
+from turtle import pos
 from unittest.result import failfast
 import yahoo_fin.stock_info as ys
 import pandas as pd
@@ -34,12 +35,21 @@ def main():
     # DEMO START
     
     # buy demo stocks
-    buy_into_postion("MSFT", 10000, date=datetime.date(2022, 1, 9))
-    buy_into_postion("V", 5000, date=datetime.date(2022, 1, 9))
-    buy_into_postion("AAPL", 20000, date=datetime.date(2022, 1, 9))
+    buy_position("MSFT", 10000, date=datetime.date(2018, 1, 9))
+    buy_position("V", 5000, date=datetime.date(2018, 1, 9))
+    buy_position("AAPL", 20000, date=datetime.date(2018, 1, 9))
     
     # check portfolio
     print(portfolio)
+    
+    # sell demo stocks
+    sell_position("MSFT", date=datetime.date(2022, 10, 30))
+
+    print(portfolio)
+
+    liquidate_postions()
+    print("Sold all")
+
     
     # DEMO END
     
@@ -70,6 +80,7 @@ def get_sp500_index():
     # idea to do it myself: aggregate valume and calculate the weight for each symbol
     return symbols
 
+
 def get_stock_type(symbol):
     """
     returns the category of a given stock symbol
@@ -77,6 +88,7 @@ def get_stock_type(symbol):
     info = ys.get_company_info(symbol)
     sector = info["Value"]["sector"]
     return sector
+
 
 def get_price_for_symbol(symbol, date=None):
     """
@@ -99,17 +111,17 @@ def get_price_for_symbol(symbol, date=None):
     return result[-1]
 
     
-def buy_into_positions(symbols, amounts_fiat):
+def buy_into_positions(symbols, amounts_fiat, date):
     """
     Liquidates all existing positions and buys the given amount for every symbol
     """
     
     # Liquidate all open positions
-    liquidate_postions()
+    liquidate_postions(date=date)
     
     # for every symbol, buy the coresponding amount
     
-    #buy_into_postion(symbol, amount_fiat)
+    #buy_position(symbol, amount_fiat)
     
     # save all the information into the portfolio.json
     
@@ -117,7 +129,7 @@ def buy_into_positions(symbols, amounts_fiat):
 
 
 
-def buy_into_postion(symbol, amount_fiat, date):
+def buy_position(symbol, amount_fiat, date):
     """
     Buys a stock and adds it to the portfolio
     """
@@ -144,15 +156,42 @@ def buy_into_postion(symbol, amount_fiat, date):
     
 
 
-def liquidate_postions():
+def liquidate_postions(date=None):
     # loop through postions
+    for position in list(portfolio):
+        # sell all positons (not fiat)
+        if position != "fiat":
+            sell_position(position, date=date)
     
-    # sell them all
+    print(portfolio)
+
+def sell_position(symbol, date=None):
+    """
+    Sells a stock and adds it to the portfolio
+    """
+    # TODO no fractional shares
     
-    # get cash
+    fiat_portfolio = portfolio["fiat"]
     
-    portfolio = {}
+    # check if position in portfolio
+    if symbol not in portfolio:
+        print("Error: There is no existing position for {symbol}. Unable to sell postion.")
+        return 0
     
+    # get price
+    price = get_price_for_symbol(symbol, date=date)
+
+    # calcualte stock amount (fractional shares possible in this work)
+    amount_fiat =  portfolio[symbol] * price
+    
+    # remove from the portfolio
+    del portfolio[symbol]
+    
+    # add fiat amount from fiat portfolio
+    portfolio["fiat"] = fiat_portfolio + amount_fiat
+
+    
+
  
 def calculate_portfolio_value(date):
     """
