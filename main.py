@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import utils
 import yfinance as yf
 from dateutil import relativedelta
-
+import numpy as np
+import math
 """
 Ideas & Notes:
 
@@ -69,23 +70,24 @@ def main():
     """
         
     # initalize the portfolio
-    starting_date =  datetime.date(2019, 1, 1)
-    ending_date = datetime.date.today()
+    starting_date =  datetime.date(2010, 8, 1)
+    ending_date = datetime.date.today() # datetime.date(2022, 5, 1)
     current_date = starting_date
     
     inital_portfolio_value = 100000 # 100k USD
     data["general"]["fiat"] = inital_portfolio_value
     data["seasonal"]["fiat"] = inital_portfolio_value
 
-    # buy into the general market
-    buy_into_positions("general", ["AMZN", "GOOG"],
-                       [50000, 40000],
-                       date=current_date)
-    buy_into_positions("seasonal", ["AAPL", "MSFT"],
-                       [50000, 40000],
-                       date=current_date)
+    #buy_into_positions("general", ["AMZN", "GOOG"], date=current_date)
+    #buy_into_positions("seasonal", ["AAPL", "MSFT"], date=current_date)
+    
     # TODO: check if date in consumer markets or general
     
+    # buy into the general market
+    symbols = get_index("dowjones")
+    buy_into_positions("general", symbols, date=current_date)
+    buy_into_positions("seasonal", symbols, date=current_date)
+
     
     
     utils.start_progress("Start investing...")
@@ -100,12 +102,14 @@ def main():
         if current_date.month == 11 and current_date.day == 1:
             # buy into the consumer markets postions
             # TODO buy_into_positions
-            pass
+            symbols = get_index("dowjones-consumer")
+            buy_into_positions("seasonal", symbols, date=current_date)
+
         # if date = 1. March
         if current_date.month == 3 and current_date.day == 1:
             # buy into the general market
-            # TODO buy_into_positions
-            pass
+            symbols = get_index("dowjones")
+            buy_into_positions("seasonal", symbols, date=current_date)
         
         # if 1st of the month
         if current_date.day == 1:
@@ -132,7 +136,7 @@ def main():
 
     ax.plot(timeline["general"]["date"], timeline["general"]["value"], label = "General")
     ax.plot(timeline["seasonal"]["date"], timeline["seasonal"]["value"], label = "Seasonal")
-
+    plt.legend()
     #ax.plot(timeline["general"]["date"], timeline["general"]["value"], linewidth=2.0)
 
     plt.show()
@@ -150,7 +154,29 @@ def get_index(index):
 
         
     elif index == "dowjones":
-        symbols = ys.tickers_dow()
+        #symbols = ys.tickers_dow()
+        # TODO use all symbols!! now not due to time, or simply get only the index price! or an ETF
+        #symbols = ['AAPL', 'AMGN', 'AXP', 'BA', 'CAT', 'CRM', 'CSCO', 'CVX', 'DIS', 'DOW', 'GS', 'HD', 'HON', 'IBM', 'INTC', 'JNJ', 'JPM', 'KO', 'MCD', 'MMM', 'MRK', 'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT']
+        symbols = ['DIA']
+        
+    elif index == "dowjones-consumer":
+        #symbols = ys.tickers_dow()
+        symbols = ['HD', 'KO', 'MCD', 'NKE', 'PG', 'WMT']
+        """
+        # get symbols from type Cunsumer Goods
+        consumer_symbols = []
+        for symbol in symbols:
+            info = ys.get_company_info(symbol)
+            sector = info["Value"]["sector"]
+            #print(symbol, sector)
+
+            if "Consumer" in sector:
+                consumer_symbols.append(symbol)
+                
+        print(consumer_symbols)
+        """
+        
+        
 
     # TODO: get the weights of each postions in the index
     # idea to do it myself: aggregate valume and calculate the weight for each symbol
@@ -187,13 +213,17 @@ def get_price_for_symbol(symbol, date=None):
     return result[-1]
 
     
-def buy_into_positions(portfolio, symbols, amounts_fiat, date):
+def buy_into_positions(portfolio, symbols, date):
     """
     Liquidates all existing positions and buys the given amount for every symbol
     """
     
     # Liquidate all open positions
-    liquidate_postions(portfolio, date=date)
+    fiat_amount = liquidate_postions(portfolio, date=date)
+    
+    # TODO: different weights for each symbol?
+    
+    amounts_fiat = [math.floor(fiat_amount / len(symbols))] * len(symbols)
     
     # for every symbol, buy the coresponding amount
     for i in range(len(symbols)):
@@ -229,13 +259,24 @@ def buy_position(portfolio, symbol, amount_fiat, date):
 
 
 def liquidate_postions(portfolio, date=None):
+    """Liquidates all open positions
+
+    Args:
+        portfolio (string): name of the portfolio
+        date (datetime, optional): date on which the postions are liquidated. Defaults to None.
+
+    Returns:
+        float: Amount of fiat money in the portfolio after liquidation
+    
+    """
+    
     # loop through postions
     for position in list(data[portfolio]):
         # sell all positons (not fiat)
         if position != "fiat":
             sell_position(portfolio, position, date=date)
     
-    print(data[portfolio])
+    return data[portfolio]["fiat"]
 
 def sell_position(portfolio, symbol, date=None):
     """

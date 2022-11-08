@@ -8,31 +8,24 @@ import datetime
 import yahoo_fin.stock_info as ys
 import yfinance as yf
 import utils
+import numpy as np
 from dateutil import relativedelta
 
 #msft = yf.Ticker("MSFT")
 #sector = main.get_stock_type("MSFT")
 #print(sector)
 
+symbol = "DIA"
 
+# no date defined, get current price 
+date = datetime.datetime.today() - datetime.timedelta(days=1)
+    
+# get date (+1) in correct format
+end_date = date + datetime.timedelta(days=1)
 
-print(int(datetime.datetime.utcnow().timestamp()))
+# get date (-5) in correct format
+start_date = date - datetime.timedelta(days=10)
 
-starting_date =  datetime.date(2022, 1, 9)
-print(utils.datetime_to_int(starting_date))
-ending_date = datetime.date.today()
-current_date = starting_date
-
-utils.start_progress("Get Stock Types...")
-
-while current_date < ending_date:
-            
-    utils.progress(2 / 9 * 100)
-    #current_date = current_date + datetime.timedelta(days=1)
-    current_date = current_date + relativedelta.relativedelta(months=1, day=1)
-    print(current_date)
-
-utils.end_progress()
-
-
-
+result = yf.download(symbol, start_date, end_date, progress=False)
+result = result["Adj Close"]
+print( result[-1])
